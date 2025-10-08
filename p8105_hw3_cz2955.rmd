@@ -27,7 +27,9 @@ library(p8105.datasets)
 data("instacart")
 ```
 
-This dataset comprises partial information from Instacart order data, containing users' historical orders and itemised details of goods within those orders. Each row in the data represents a specific item purchased by a user during a particular order. Key variables include `r paste(colnames(instacart), collapse = ", ")`. There are total `r nrow(instacart)`variables. The average reorder rate across all items is `r round(mean(instacart$reordered, na.rm = TRUE), 3)`, indicating that a significant fraction of purchases are repeat orders. \### (a):
+This dataset comprises partial information from Instacart order data, containing users' historical orders and itemised details of goods within those orders. Each row in the data represents a specific item purchased by a user during a particular order. Key variables include `r paste(colnames(instacart), collapse = ", ")`. There are total `r nrow(instacart)`variables. The average reorder rate across all items is `r round(mean(instacart$reordered, na.rm = TRUE), 3)`, indicating that a significant fraction of purchases are repeat orders.
+
+### (a):
 
 ```{r}
 length(unique(instacart$aisle))
@@ -58,6 +60,7 @@ ggplot(aisle_counts_large, aes(x = reorder(aisle, -num_orders), y = num_orders))
 
 ```{r}
 popular_items <- instacart %>%
+  
   filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>% 
   group_by(aisle, product_name) %>% 
   summarise(num_orders = n()) %>% 
@@ -82,16 +85,19 @@ mean_order_hour
 
 ## Problem 2
 
+### Q1: There are 116 months between January 2015 and August 2024. How many ZIP codes are observed 116 times? How many are observed fewer than 10 times? Why are some ZIP codes are observed rarely and others observed in each month?
+
 ```{r}
 # Table1
-Zip_Codes<-read_csv("Zip_Codes.csv")|>
-  select(County, ZipCode, Neighborhood) |>
+Zip_Codes <- read_csv("Zip_Codes.csv") |>
+  dplyr::select(County, ZipCode, Neighborhood) |>
   mutate(
     ZipCode = as.integer(ZipCode),
     County = as.character(County),
     Neighborhood = as.character(Neighborhood)
     )
-# Tablke2
+
+# Table2
 Zip_NYC<-read_csv("Zip_NYC.csv")|>
   rename(ZipCode = RegionName,
          County = CountyName
@@ -100,7 +106,7 @@ Zip_NYC<-read_csv("Zip_NYC.csv")|>
     ZipCode = as.integer(ZipCode),
     County = str_replace(County, " County", "")
   )|>
-  select(ZipCode, County, starts_with("201"), starts_with("202"))|>
+  dplyr::select(ZipCode, County, starts_with("201"), starts_with("202"))|>
   pivot_longer(
     cols = -c(ZipCode, County),
     names_to = "Date",
@@ -127,9 +133,9 @@ n_lt10 <- zip_counts %>%
   nrow()
 ```
 
-There are `r print(n_116)`ZIP codes observed 116 times and `r print(n_lt10)` ZIP codes are fewer than 10 times. Certain postcodes yield monthly data due to high rental activity and ample property listings within these areas; conversely, some postcodes show infrequent observations owing to small market size, infrequent listings, or incomplete data collection. Rental data is observed monthly for certain postcodes, typically because these areas feature active rental markets with ample supply and consistent data collection coverage.
+There are `r n_116` ZIP codes observed 116 times and `r n_lt10` ZIP codes are fewer than 10 times. Certain postcodes yield monthly data due to high rental activity and ample property listings within these areas; conversely, some postcodes show infrequent observations owing to small market size, infrequent listings, or incomplete data collection. Rental data is observed monthly for certain postcodes, typically because these areas feature active rental markets with ample supply and consistent data collection coverage.
 
-### Table showing the average rental price
+### Q2: Create a reader-friendly table showing the average rental price in each borough and year (not month). Comment on trends in this table.
 
 ```{r}
 # Table for average price
@@ -140,11 +146,23 @@ avg_rent <- z_together %>%
     AvgRent = mean(RentPrice, na.rm = TRUE),
     .groups = "drop"
   ) %>% 
-  mutate(Year = year(Year))
+  mutate(Year = year(Year)) %>% 
+  pivot_wider(names_from = County, values_from = AvgRent)
 
-head(avg_rent)
+avg_rent
+```
 
-p1 <- ggplot(avg_rent, aes(x = Year, y = AvgRent, color = County)) +
+### Q3: Make a plot showing NYC Rental Prices within ZIP codes for all available years. Your plot should facilitate comparisons across boroughs. Comment on any significant elements of this plot.
+
+```{r}
+avg_rent_long <- avg_rent %>%
+  pivot_longer(
+    cols = -Year,          
+    names_to = "County",   
+    values_to = "AvgRent"  
+  )
+
+p1 <- ggplot(avg_rent_long, aes(x = Year, y = AvgRent, color = County)) +
   geom_line(size = 1.2) +
   geom_point(size = 2) +
   labs(
@@ -166,7 +184,7 @@ p1
 
 The line chart shows the average rental prices across New York City boroughs over time. A few key patterns stand out: 1.Rental prices generally increased from 2015 to 2024 across all boroughs, reflecting rising housing demand and inflationary pressures in the NYC market. 2.Around 2020–2021, a temporary decline or plateau appears, likely corresponding to the COVID-19 pandemic’s impact on the rental market as urban migration slowed and vacancy rates increased.
 
-### Average rental price within each ZIP code over each month in 2023
+### Q4: Compute the average rental price within each ZIP code over each month in 2023. Make a reader-friendly plot showing the distribution of ZIP-code-level rental prices across boroughs; put differently, your plot should facilitate the comparison of the distribution of average rental prices across boroughs. Comment on this plot.
 
 ```{r}
 rent2023 <- z_together %>%
@@ -179,10 +197,8 @@ rent2023 <- z_together %>%
   ) %>%
   drop_na(AvgRent2023)
 
-library(tidyverse)
-library(lubridate)
+# Calculate the monthly average rent for each postcode in 2023
 
-# 计算2023年各邮政编码的月平均租金
 rent_2023 <- z_together %>%
   mutate(Year = year(as.Date(Date))) %>%
   filter(Year == 2023) %>%
@@ -210,7 +226,8 @@ p2 <- ggplot(rent_2023, aes(x = County, y = AvgRent2023, fill = County)) +
 p2
 ```
 
-### Combine the two previous plots
+### Q5: Combine the two previous plots into a single graphic, and export this to a results folder in your repository.
+
 
 ```{r}
 combined_plot <- p1 / p2
@@ -219,6 +236,8 @@ ggsave("results/combined_plot.png", combined_plot, width = 12, height = 10, dpi 
 ```
 
 ## Problem 3
+
+### Q1: Load, tidy, merge, and otherwise organize the data sets. Your final dataset should include all originally observed variables; exclude participants less than 21 years of age, and those with missing demographic data; and encode data with reasonable variable classes (i.e. not numeric, and using factors with the ordering of tables and plots in mind).
 
 ```{r}
 # Demographic_data
@@ -241,7 +260,7 @@ demo <- demo_raw[-c(1:4), ] %>%
   filter(age >= 21) %>% 
   drop_na() %>% 
   clean_names() %>% 
-  select(-bmi)  
+  dplyr::select(-bmi)  
 
 # Accelerometer_data
 accel <- read_csv("accelerometer_data.csv") %>% 
@@ -260,9 +279,11 @@ accel <- read_csv("accelerometer_data.csv") %>%
 acc_together<-accel %>%
   left_join(demo, by = c("seqn" = "seqn"))%>% 
   drop_na()
+
+acc_together
 ```
 
-### Table: the number of men and women in each education category
+### Q2: Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category. Comment on these items.
 
 ```{r}
 gender_edu_table <- demo %>%
@@ -270,11 +291,21 @@ gender_edu_table <- demo %>%
   summarize(count = n(), .groups = "drop") %>%
   pivot_wider(names_from = sex, values_from = count)
 gender_edu_table
+# Visualization
+gender_edu_long <- gender_edu_table %>%
+  pivot_longer(cols = c(Female, Male), names_to = "Sex", values_to = "Count")
+ggplot(gender_edu_long, aes(x = education, y = Count, fill = Sex)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Count of Male and Female by Education",
+       x = "Education Level",
+       y = "Count") +
+  theme_minimal()
 ```
 
 Overall, the largest cohort comprises individuals with higher educational attainment (‘More than high school’), indicating a significant proportion of highly educated participants within the sample. Males are more prevalent in the secondary education group (high school equivalent), while females slightly outnumber males in the higher education group. This may reflect gender disparities across different educational levels within the sample.
 
-### Total activities (y-axis) against age (x-axis) plot
+### Q3: Traditional analyses of accelerometer data focus on the total activity over the day. Using your tidied dataset, aggregate across minutes to create a total activity variable for each participant. Plot these total activities (y-axis) against age (x-axis); your plot should compare men to women and have separate panels for each education level. Include a trend line or a smooth to illustrate differences. Comment on your plot.
+
 ```{r}
 total_activity <- acc_together %>% 
   group_by(seqn, sex, age, education) %>%  
@@ -293,9 +324,11 @@ ggplot(total_activity, aes(x = age, y = total_activity, color = sex)) +
   theme_minimal() +
   theme(strip.text = element_text(face = "bold"))
 ```
+
 Trend lines indicate that overall activity levels generally decline with age, though the rate of decline may differ between men and women.
 
-### 
+### Q4: Accelerometer data allows the inspection activity over the course of the day. Make a three-panel plot that shows the 24-hour activity time courses for each education level and use color to indicate sex. Describe in words any patterns or conclusions you can make based on this graph; including smooth trends may help identify differences.
+
 ```{r}
 hourly_activity <- acc_together %>%
   mutate(hour = floor(as.numeric(gsub("min", "", minute)) / 60)) %>% 
@@ -315,4 +348,5 @@ ggplot(hourly_activity, aes(x = hour, y = avg_activity, color = sex)) +
   theme_minimal() +
   theme(strip.text = element_text(face = "bold"))
 ```
+
 The trends observed in both males and females over a 24-hour period are similar. Levels decline between 0 and 5 hours, rise between 5 and 10 hours, fluctuate evenly around 10 to 18 hours, and then decline again between 18 and 24 hours.
