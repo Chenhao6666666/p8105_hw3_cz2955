@@ -154,6 +154,8 @@ avg_rent
 
 ### Q3: Make a plot showing NYC Rental Prices within ZIP codes for all available years. Your plot should facilitate comparisons across boroughs. Comment on any significant elements of this plot.
 
+Notice: I visualised the average rental prices for all available years across each postcode area in New York City.
+
 ```{r}
 avg_rent_long <- avg_rent %>%
   pivot_longer(
@@ -291,15 +293,18 @@ gender_edu_table <- demo %>%
   summarize(count = n(), .groups = "drop") %>%
   pivot_wider(names_from = sex, values_from = count)
 gender_edu_table
+
 # Visualization
-gender_edu_long <- gender_edu_table %>%
-  pivot_longer(cols = c(Female, Male), names_to = "Sex", values_to = "Count")
-ggplot(gender_edu_long, aes(x = education, y = Count, fill = Sex)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Count of Male and Female by Education",
-       x = "Education Level",
-       y = "Count") +
+ggplot(demo, aes(x = age, fill = sex, color = sex)) +
+  geom_density(alpha = 0.3) +
+  facet_wrap(~ education, ncol = 2, scales = "free_y") +
+  labs(
+    title = "Density of Age by Sex within Each Education Category",
+    x = "Age (years)",
+    y = "Density"
+  ) +
   theme_minimal()
+
 ```
 
 Overall, the largest cohort comprises individuals with higher educational attainment (‘More than high school’), indicating a significant proportion of highly educated participants within the sample. Males are more prevalent in the secondary education group (high school equivalent), while females slightly outnumber males in the higher education group. This may reflect gender disparities across different educational levels within the sample.
@@ -336,7 +341,8 @@ hourly_activity <- acc_together %>%
   summarize(avg_activity = mean(value, na.rm = TRUE), .groups = "drop")
 
 ggplot(hourly_activity, aes(x = hour, y = avg_activity, color = sex)) +
-  geom_line(size = 1) +            
+  geom_line(size = 1) + 
+  geom_point(size = 2, alpha = 0.5, position = position_jitter(width = 0.1))+
   geom_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
   facet_wrap(~ education, ncol = 1) + 
   labs(
